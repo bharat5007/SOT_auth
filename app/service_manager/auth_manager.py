@@ -1,5 +1,193 @@
+from app.models import User, UserRole, RefreshToken, Role
+from app.schemas import SignupRequest, AuthResponse, LoginRequest, RefreshTokenRequest, TokenResponse, UpdateProfileRequest, UserContext, UpdatePasswordRequest
+from app.utils import get_user_context, create_tokens
+from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import HTTPException, status
+from sqlalchemy import select, update
+from app.auth import hash_password, verify_password, decode_token
+from datetime import datetime
+
 class AuthManager:
     
     @classmethod
-    async def signup(cls):
-        return {"msg": "SignUp Successful"}
+    async def signup(cls, request: SignupRequest, db: AsyncSession) -> AuthResponse:
+        """Register a new user account"""
+        result = await db.execute(
+            select(User).filter(User.email == request.email)
+        )
+        existing_user = result.scalar_one_or_none()
+
+        if existing_user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already registered"
+            )
+
+        # Create new user
+        user = User(
+            email=request.email,
+            username=request.username,
+            hashed_password=hash_password(request.password),
+            role=UserRole(request.role.value)
+        )
+        db.add(user)
+        await db.flush()
+
+        # Create initial role entry
+        role = Role(
+            user_id=user.id,
+            role=user.role
+        )
+        db.add(role)
+
+        await db.commit()
+        await db.refresh(user)
+
+        tokens = await create_tokens(user, db)
+        user_context = get_user_context(user)
+
+        return AuthResponse(user=user_context, tokens=tokens)
+    
+    @classmethod
+    async def login(cls, request: LoginRequest, db: AsyncSession) -> AuthResponse:
+        """Login with email and password"""
+        result = await db.execute(
+            select(User).filter(User.email == request.email)
+        )
+        user = result.scalar_one_or_none()
+        
+        if not user or not verify_password(request.password, user.hashed_password):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid email or password"
+            )
+        
+        if not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Account is disabled"
+            )
+        
+        tokens = await create_tokens(user, db)
+        user_context = get_user_context(user)
+        
+        return AuthResponse(user=user_context, tokens=tokens)
+    
+    @classmethod
+    async def refresh_token(cls, request: RefreshTokenRequest, db: AsyncSession) -> TokenResponse:
+        """Refresh access token using refresh token"""
+        # Decode refresh token
+        try:
+            payload = decode_token(request.refresh_token)
+        except HTTPException:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid refresh token"
+            )
+        
+        if payload.get("type") != "refresh":
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token type"
+            )
+        
+        # Check if token exists and is not revoked
+        result = await db.execute(
+            select(RefreshToken).filter(
+                RefreshToken.token == request.refresh_token,
+                RefreshToken.is_revoked == False
+            )
+        )
+        db_token = result.scalar_one_or_none()
+        
+        if not db_token:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Refresh token not found or revoked"
+            )
+        
+        if db_token.expires_at < datetime.utcnow():
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Refresh token expired"
+            )
+        
+        # Revoke old refresh token (token rotation)
+        db_token.is_revoked = True
+        
+        # Get user and create new tokens
+        user_result = await db.execute(
+            select(User).filter(User.id == db_token.user_id)
+        )
+        user = user_result.scalar_one_or_none()
+        
+        if not user or not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User not found or inactive"
+            )
+        
+        tokens = await create_tokens(user, db)
+        
+        return tokens
+    
+    @classmethod
+    async def logout(cls, current_user: User, db: AsyncSession) -> dict:
+        """Logout and revoke all refresh tokens"""
+        await db.execute(
+            update(RefreshToken)
+            .where(
+                RefreshToken.user_id == current_user.id,
+                RefreshToken.is_revoked == False
+            )
+            .values(is_revoked=True)
+        )
+        await db.commit()
+        
+        return {"message": "Successfully logged out"}
+    
+    @classmethod
+    async def update_profile(cls, request: UpdateProfileRequest, current_user: User, db: AsyncSession) -> UserContext:
+        """Update user profile"""
+        if request.email and request.email != current_user.email:
+            result = await db.execute(
+                select(User).filter(User.email == request.email)
+            )
+            existing_user = result.scalar_one_or_none()
+            
+            if existing_user:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Email already in use"
+                )
+            current_user.email = request.email
+        
+        if request.username:
+            current_user.username = request.username
+        
+        await db.commit()
+        await db.refresh(current_user)
+        
+        return get_user_context(current_user)
+    
+    @classmethod
+    async def change_password(cls, request: UpdatePasswordRequest, current_user: User, db: AsyncSession) -> dict:
+        """Change user password"""
+        if not verify_password(request.current_password, current_user.hashed_password):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Current password is incorrect"
+            )
+        
+        current_user.hashed_password = hash_password(request.new_password)
+        
+        # Revoke all refresh tokens for security
+        await db.execute(
+            update(RefreshToken)
+            .where(RefreshToken.user_id == current_user.id)
+            .values(is_revoked=True)
+        )
+        
+        await db.commit()
+        
+        return {"message": "Password changed successfully"}
