@@ -7,7 +7,8 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from .config import settings
 from .database import get_db
 from . import models
@@ -69,9 +70,9 @@ def decode_token(token: str) -> dict:
         )
 
 
-def get_current_user(
+async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ) -> models.User:
     """Get current authenticated user from JWT token"""
     token = credentials.credentials
@@ -90,7 +91,11 @@ def get_current_user(
             detail="Invalid token payload"
         )
     
-    user = db.query(models.User).filter(models.User.id == int(user_id)).first()
+    result = await db.execute(
+        select(models.User).filter(models.User.id == int(user_id))
+    )
+    user = result.scalar_one_or_none()
+    
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -106,7 +111,7 @@ def get_current_user(
     return user
 
 
-def get_current_active_user(current_user: models.User = Depends(get_current_user)) -> models.User:
+async def get_current_active_user(current_user: models.User = Depends(get_current_user)) -> models.User:
     """Ensure current user is active"""
     if not current_user.is_active:
         raise HTTPException(
@@ -118,7 +123,7 @@ def get_current_active_user(current_user: models.User = Depends(get_current_user
 
 def require_role(allowed_roles: list[str]):
     """Dependency to require specific roles"""
-    def role_checker(current_user: models.User = Depends(get_current_user)) -> models.User:
+    async def role_checker(current_user: models.User = Depends(get_current_user)) -> models.User:
         if current_user.role.value not in allowed_roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,

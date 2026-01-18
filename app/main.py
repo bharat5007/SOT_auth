@@ -13,10 +13,22 @@ from .routes import auth
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan handler"""
-    # Startup: Create tables
-    Base.metadata.create_all(bind=engine)
+    # Startup: Create tables (skip if database not available)
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        print("✅ Database tables created successfully")
+    except Exception as e:
+        print(f"⚠️ Skipping database initialization: {str(e)}")
+        print("   Configure DATABASE_URL in .env to enable database features")
+    
     yield
+    
     # Shutdown: Cleanup if needed
+    try:
+        await engine.dispose()
+    except Exception:
+        pass
 
 
 app = FastAPI(
@@ -40,7 +52,7 @@ app.include_router(auth.router)
 
 
 @app.get("/")
-def root():
+async def root():
     """Health check endpoint"""
     return {
         "service": settings.APP_NAME,
@@ -50,6 +62,6 @@ def root():
 
 
 @app.get("/health")
-def health_check():
+async def health_check():
     """Health check for load balancers"""
     return {"status": "ok"}
