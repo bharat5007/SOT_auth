@@ -1,6 +1,6 @@
 from app.models import User, UserRole, RefreshToken
 from app.schemas import SignupRequest, AuthResponse, LoginRequest, RefreshTokenRequest, TokenResponse, UpdateProfileRequest, UserContext, UpdatePasswordRequest
-from app.utils import get_user_context, create_tokens
+from app.utils import get_user_context, create_tokens, base36_encode
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, status
 from sqlalchemy import select, update
@@ -33,6 +33,9 @@ class AuthManager:
         )
         db.add(user)
         await db.flush()
+        user.username = f"user_{base36_encode(user.id)}"
+        db.commit()
+        db.refresh(user)
 
         tokens = await create_tokens(user, db)
         user_context = get_user_context(user)

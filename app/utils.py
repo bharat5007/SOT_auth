@@ -4,6 +4,7 @@ from app.models import User, UserRole, RefreshToken
 from app.schemas import TokenResponse
 from app.auth import create_access_token, create_refresh_token, settings
 from sqlalchemy.ext.asyncio import AsyncSession
+import string
 
 def get_user_context(user: User) -> UserContext:
     """Get user context"""
@@ -39,3 +40,19 @@ async def create_tokens(user: User, db: AsyncSession) -> TokenResponse:
         refresh_token=refresh_token,
         expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
     )
+    
+
+def base36_encode(number: int) -> str:
+    ALPHABET = string.digits + string.ascii_lowercase
+    if number < 0:
+        raise ValueError("Number must be non-negative")
+
+    if number == 0:
+        return "0"
+
+    base36 = []
+    while number:
+        number, rem = divmod(number, 36)
+        base36.append(ALPHABET[rem])
+
+    return ''.join(reversed(base36))
