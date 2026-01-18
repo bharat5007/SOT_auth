@@ -16,14 +16,15 @@ class UserRole(str, Enum):
 # ============== Auth Schemas ==============
 
 class LoginRequest(BaseModel):
-    email: EmailStr
+    phone: Optional[str] = None
+    email: Optional[EmailStr] = None
     password: str = Field(min_length=6)
 
 
 class SignupRequest(BaseModel):
-    email: EmailStr
+    phone: str
+    email: Optional[EmailStr]
     password: str = Field(min_length=6)
-    username: str = Field(min_length=3, max_length=100)
     role: UserRole = UserRole.USER
 
 

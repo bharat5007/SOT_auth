@@ -13,17 +13,27 @@ from app.utils import get_user_context
 router = APIRouter(prefix="/api/v1/auth", tags=["Authentication"])
 
 
-@router.post("/signup", response_model=schemas.AuthResponse)
+@router.post("/signup")
 async def signup(request: SignupRequest, db: AsyncSession = Depends(get_db)):
     """Register a new user account"""
     response = await AuthManager.signup(request, db)
     return response
 
 
-@router.post("/login", response_model=schemas.AuthResponse)
+@router.post("/login")
 async def login(request: LoginRequest, db: AsyncSession = Depends(get_db)):
     """Login with email and password"""
     response = await AuthManager.login(request, db)
+    return response
+
+
+@router.post("/logout")
+async def logout(
+    current_user: models.User = Depends(auth.get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Logout and revoke all refresh tokens"""
+    response = await AuthManager.logout(current_user, db)
     return response
 
 
@@ -39,15 +49,6 @@ async def get_user_context_route(current_user: models.User = Depends(auth.get_cu
     """Get current user context"""
     return get_user_context(current_user)
 
-
-@router.post("/logout")
-async def logout(
-    current_user: models.User = Depends(auth.get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """Logout and revoke all refresh tokens"""
-    response = await AuthManager.logout(current_user, db)
-    return response
 
 
 @router.patch("/profile", response_model=schemas.UserContext)

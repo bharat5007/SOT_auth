@@ -1,4 +1,4 @@
-from app.models import User, UserRole, RefreshToken, Role
+from app.models import User, UserRole, RefreshToken
 from app.schemas import SignupRequest, AuthResponse, LoginRequest, RefreshTokenRequest, TokenResponse, UpdateProfileRequest, UserContext, UpdatePasswordRequest
 from app.utils import get_user_context, create_tokens
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,7 +13,7 @@ class AuthManager:
     async def signup(cls, request: SignupRequest, db: AsyncSession) -> AuthResponse:
         """Register a new user account"""
         result = await db.execute(
-            select(User).filter(User.email == request.email)
+            select(User).filter(User.phone == request.phone)
         )
         existing_user = result.scalar_one_or_none()
 
@@ -25,6 +25,7 @@ class AuthManager:
 
         # Create new user
         user = User(
+            phone=request.phone,
             email=request.email,
             username=request.username,
             hashed_password=hash_password(request.password),
@@ -32,16 +33,6 @@ class AuthManager:
         )
         db.add(user)
         await db.flush()
-
-        # Create initial role entry
-        role = Role(
-            user_id=user.id,
-            role=user.role
-        )
-        db.add(role)
-
-        await db.commit()
-        await db.refresh(user)
 
         tokens = await create_tokens(user, db)
         user_context = get_user_context(user)
@@ -51,9 +42,15 @@ class AuthManager:
     @classmethod
     async def login(cls, request: LoginRequest, db: AsyncSession) -> AuthResponse:
         """Login with email and password"""
-        result = await db.execute(
-            select(User).filter(User.email == request.email)
-        )
+        
+        if request.email:
+            result = await db.execute(
+                select(User).filter(User.email == request.email)
+            )
+        else:
+            result = await db.execute(
+                select(User).filter(User.phone == request.phone)
+            )
         user = result.scalar_one_or_none()
         
         if not user or not verify_password(request.password, user.hashed_password):
