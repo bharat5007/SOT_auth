@@ -1,6 +1,6 @@
 from app.models import User, UserRole, RefreshToken
 from app.schemas import SignupRequest, AuthResponse, LoginRequest, RefreshTokenRequest, TokenResponse, UpdateProfileRequest, UserContext, UpdatePasswordRequest
-from app.utils import get_user_context, create_tokens, base36_encode
+from app.utils import get_user_context, create_tokens, base36_encode, decode_frontend_password
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, status
 from sqlalchemy import select, update
@@ -16,31 +16,33 @@ class AuthManager:
             select(User).filter(User.phone == request.phone)
         )
         existing_user = result.scalar_one_or_none()
-
         if existing_user:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Email already registered"
             )
 
+        # Decode frontend-encoded password
+        decoded_password = decode_frontend_password(request.password)
+        print(f"!!!!!!!!!!!! {decoded_password}")
+        x = hash_password(decoded_password)
+        print(f"<<<<<<<<<<<<<<<<<< {x}")
         # Create new user
         user = User(
             phone=request.phone,
             email=request.email,
-            username=request.username,
-            hashed_password=hash_password(request.password),
+            hashed_password=hash_password(decoded_password),
             role=UserRole(request.role.value)
         )
+
         db.add(user)
         await db.flush()
         user.username = f"user_{base36_encode(user.id)}"
-        db.commit()
-        db.refresh(user)
+        await db.commit()
+        await db.refresh(user)
 
-        tokens = await create_tokens(user, db)
-        user_context = get_user_context(user)
-
-        return AuthResponse(user=user_context, tokens=tokens)
+        token = await create_tokens(user, db)
+        return user, token
     
     @classmethod
     async def login(cls, request: LoginRequest, db: AsyncSession) -> AuthResponse:
@@ -56,7 +58,10 @@ class AuthManager:
             )
         user = result.scalar_one_or_none()
         
-        if not user or not verify_password(request.password, user.hashed_password):
+        # Decode frontend-encoded password
+        decoded_password = decode_frontend_password(request.password)
+        
+        if not user or not verify_password(decoded_password, user.hashed_password):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid email or password"
@@ -69,9 +74,7 @@ class AuthManager:
             )
         
         tokens = await create_tokens(user, db)
-        user_context = get_user_context(user)
-        
-        return AuthResponse(user=user_context, tokens=tokens)
+        return user, tokens
     
     @classmethod
     async def refresh_token(cls, request: RefreshTokenRequest, db: AsyncSession) -> TokenResponse:
@@ -173,13 +176,17 @@ class AuthManager:
     @classmethod
     async def change_password(cls, request: UpdatePasswordRequest, current_user: User, db: AsyncSession) -> dict:
         """Change user password"""
-        if not verify_password(request.current_password, current_user.hashed_password):
+        # Decode frontend-encoded passwords
+        decoded_current = decode_frontend_password(request.current_password)
+        decoded_new = decode_frontend_password(request.new_password)
+        
+        if not verify_password(decoded_current, current_user.hashed_password):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Current password is incorrect"
             )
         
-        current_user.hashed_password = hash_password(request.new_password)
+        current_user.hashed_password = hash_password(decoded_new)
         
         # Revoke all refresh tokens for security
         await db.execute(

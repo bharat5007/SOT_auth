@@ -1,30 +1,42 @@
 """
 Authentication Routes
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..database import get_db
 from .. import models, schemas, auth
 from app.schemas import SignupRequest, LoginRequest, RefreshTokenRequest, UpdateProfileRequest, UpdatePasswordRequest
 from app.service_manager.auth_manager import AuthManager
-from app.utils import get_user_context
+from app.utils import get_user_context, generate_shared_context
 
 router = APIRouter(prefix="/api/v1/auth", tags=["Authentication"])
 
 
 @router.post("/signup")
-async def signup(request: SignupRequest, db: AsyncSession = Depends(get_db)):
+async def signup(response: Response, request: SignupRequest, db: AsyncSession = Depends(get_db)):
     """Register a new user account"""
-    response = await AuthManager.signup(request, db)
-    return response
+    try:
+        user, token = await AuthManager.signup(request, db)
+        shared_context = generate_shared_context(user)
+        response.headers["X-Shared-Context"] = shared_context
+        return {"user": user, "token": token}
+    except Exception as e:
+        response.status_code = status.HTTP_400_BAD_REQUEST
+        return {"message": f"Login failed {str(e)}"}
 
 
 @router.post("/login")
-async def login(request: LoginRequest, db: AsyncSession = Depends(get_db)):
+async def login(response: Response, request: LoginRequest, db: AsyncSession = Depends(get_db)):
     """Login with email and password"""
-    response = await AuthManager.login(request, db)
-    return response
+    try:
+        user, token = await AuthManager.login(request, db)
+        shared_context = generate_shared_context(user)
+        response.headers["X-Shared-Context"] = shared_context
+        return {"user": user, "token": token}
+    except Exception as e:
+        response.status_code = status.HTTP_400_BAD_REQUEST
+        return {"message": f"Login failed {str(e)}"}
 
 
 @router.post("/logout")

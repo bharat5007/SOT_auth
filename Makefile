@@ -45,9 +45,9 @@ run:
 		$(MAKE) setup; \
 	fi
 	@echo "$(BLUE)Starting FastAPI application...$(NC)"
-	@echo "$(GREEN)Server will be available at: http://127.0.0.1:8000$(NC)"
-	@echo "$(GREEN)API docs available at: http://127.0.0.1:8000/docs$(NC)"
-	$(UVICORN) app.main:app --reload --host 0.0.0.0 --port 8000
+	@echo "$(GREEN)Server will be available at: http://127.0.0.1:8001$(NC)"
+	@echo "$(GREEN)API docs available at: http://127.0.0.1:8001/docs$(NC)"
+	$(UVICORN) app.main:app --reload --host 0.0.0.0 --port 8001
 
 clean:
 	@echo "$(YELLOW)Removing virtual environment...$(NC)"

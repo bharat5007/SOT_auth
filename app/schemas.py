@@ -23,7 +23,7 @@ class LoginRequest(BaseModel):
 
 class SignupRequest(BaseModel):
     phone: str
-    email: Optional[EmailStr]
+    email: Optional[EmailStr] = None
     password: str = Field(min_length=6)
     role: UserRole = UserRole.USER
 
