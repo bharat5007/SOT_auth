@@ -24,9 +24,7 @@ class AuthManager:
 
         # Decode frontend-encoded password
         decoded_password = decode_frontend_password(request.password)
-        print(f"!!!!!!!!!!!! {decoded_password}")
         x = hash_password(decoded_password)
-        print(f"<<<<<<<<<<<<<<<<<< {x}")
         # Create new user
         user = User(
             phone=request.phone,
@@ -37,7 +35,6 @@ class AuthManager:
 
         db.add(user)
         await db.flush()
-        user.username = f"user_{base36_encode(user.id)}"
         await db.commit()
         await db.refresh(user)
 

@@ -59,9 +59,6 @@ async def create_tokens(user: User, db: AsyncSession) -> TokenResponse:
     # Store refresh token in database
     db_refresh_token = RefreshToken(
         user_id=user.id,
-        username=user.username,
-        phone=user.phone,
-        email=user.email,
         token=refresh_token,
         expires_at=expires_at
     )
@@ -105,7 +102,6 @@ def generate_shared_context(user: User) -> str:
 
     payload = {
         "uid": user.id,
-        "username": user.username,
         "email": user.email,
         "phone": user.phone,
         "role": user.role.value if hasattr(user.role, 'value') else str(user.role),
