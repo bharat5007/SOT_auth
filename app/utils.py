@@ -8,6 +8,7 @@ import string
 from datetime import datetime, timedelta, timezone
 import jwt
 import base64
+import re
 
 
 def decode_frontend_password(encoded_password: str) -> str:
@@ -102,6 +103,7 @@ def generate_shared_context(user: User) -> str:
 
     payload = {
         "uid": user.id,
+        "name": user.name,
         "email": user.email,
         "phone": user.phone,
         "role": user.role.value if hasattr(user.role, 'value') else str(user.role),
@@ -120,3 +122,6 @@ def generate_shared_context(user: User) -> str:
     )
 
     return token
+
+def is_email(s: str) -> bool:
+    return bool(re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", s))

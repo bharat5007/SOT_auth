@@ -20,7 +20,7 @@ async def signup(response: Response, request: SignupRequest, db: AsyncSession = 
         user, token = await AuthManager.signup(request, db)
         shared_context = generate_shared_context(user)
         response.headers["X-Shared-Context"] = shared_context
-        return {"message": "Signup Successful", "user": user, "token": token}
+        return {"message": "Signup Successful", "user": user, "tokens": token, "shared_context": shared_context}
     except Exception as e:
         response.status_code = status.HTTP_400_BAD_REQUEST
         return {"message": f"Signup failed {str(e)}"}
@@ -32,8 +32,7 @@ async def login(response: Response, request: LoginRequest, db: AsyncSession = De
     try:
         user, token = await AuthManager.login(request, db)
         shared_context = generate_shared_context(user)
-        response.headers["X-Shared-Context"] = shared_context
-        return {"user": user, "token": token}
+        return {"user": user, "tokens": token, "shared_context": shared_context}
     except Exception as e:
         response.status_code = status.HTTP_400_BAD_REQUEST
         return {"message": f"Login failed {str(e)}"}

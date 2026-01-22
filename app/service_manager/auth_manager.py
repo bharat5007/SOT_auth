@@ -1,6 +1,6 @@
 from app.models import User, UserRole, RefreshToken
 from app.schemas import SignupRequest, AuthResponse, LoginRequest, RefreshTokenRequest, TokenResponse, UpdateProfileRequest, UserContext, UpdatePasswordRequest
-from app.utils import get_user_context, create_tokens, base36_encode, decode_frontend_password
+from app.utils import get_user_context, create_tokens, base36_encode, decode_frontend_password, is_email
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, status
 from sqlalchemy import select, update
@@ -44,14 +44,13 @@ class AuthManager:
     @classmethod
     async def login(cls, request: LoginRequest, db: AsyncSession) -> AuthResponse:
         """Login with email and password"""
-        
-        if request.email:
+        if is_email(request.identifier):
             result = await db.execute(
-                select(User).filter(User.email == request.email)
+                select(User).filter(User.email == request.identifier)
             )
         else:
             result = await db.execute(
-                select(User).filter(User.phone == request.phone)
+                select(User).filter(User.phone == request.identifier)
             )
         user = result.scalar_one_or_none()
         
