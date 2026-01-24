@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..database import get_db
 from .. import models, schemas, auth
-from app.schemas import SignupRequest, LoginRequest, RefreshTokenRequest, UpdateProfileRequest, UpdatePasswordRequest
+from app.schemas import SignupRequest, LoginRequest, RefreshTokenRequest, UpdateProfileRequest, UpdatePasswordRequest, AddVendorRoleRequest
 from app.service_manager.auth_manager import AuthManager
 from app.utils import get_user_context, generate_shared_context
 
@@ -81,4 +81,13 @@ async def change_password(
 ):
     """Change user password"""
     response = await AuthManager.change_password(request, current_user, db)
+    return response
+
+@router.post("/add-vendor-role")
+async def add_vendor_role(
+    request: AddVendorRoleRequest,
+    db: AsyncSession = Depends(get_db),
+    _: bool = Depends(auth.verify_auth_service)
+):
+    response = await AuthManager.add_vendor_role(request, db)
     return response

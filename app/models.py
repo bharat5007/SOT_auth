@@ -1,11 +1,12 @@
 """
 SQLAlchemy Models for Auth Microservice
 """
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Enum, Text, Numeric
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Enum, Text, Numeric, ARRAY
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
 from .database import Base
+from sqlalchemy.dialects.postgresql import ARRAY as PG_ARRAY
 
 
 class UserRole(str, enum.Enum):
@@ -23,7 +24,7 @@ class User(Base):
     phone = Column(String(20))
     email = Column(String(255), unique=True, nullable=True)
     hashed_password = Column(String, nullable=False)
-    role = Column(Enum(UserRole), default=UserRole.USER, nullable=False)
+    roles = Column(PG_ARRAY(Enum(UserRole, name="userrole", create_type=False)), default=[UserRole.USER.value], nullable=False)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

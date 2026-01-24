@@ -1,5 +1,5 @@
 from app.models import User, UserRole, RefreshToken
-from app.schemas import SignupRequest, AuthResponse, LoginRequest, RefreshTokenRequest, TokenResponse, UpdateProfileRequest, UserContext, UpdatePasswordRequest
+from app.schemas import SignupRequest, AuthResponse, LoginRequest, RefreshTokenRequest, TokenResponse, UpdateProfileRequest, UserContext, UpdatePasswordRequest, AddVendorRoleRequest
 from app.utils import get_user_context, create_tokens, base36_encode, decode_frontend_password, is_email
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, status
@@ -24,13 +24,17 @@ class AuthManager:
 
         # Decode frontend-encoded password
         decoded_password = decode_frontend_password(request.password)
-        x = hash_password(decoded_password)
+        
+        # During signup, default to user role only, ignore any roles in request
+        roles_to_assign = [UserRole.USER.value]
+        
         # Create new user
         user = User(
+            name=request.name,
             phone=request.phone,
             email=request.email,
             hashed_password=hash_password(decoded_password),
-            role=UserRole(request.role.value)
+            roles=roles_to_assign
         )
 
         db.add(user)
@@ -194,3 +198,51 @@ class AuthManager:
         await db.commit()
         
         return {"message": "Password changed successfully"}
+    
+    @classmethod
+    async def add_vendor_role(cls, request: AddVendorRoleRequest, db: AsyncSession) -> UserContext:
+        """
+        Add VENDOR role to a user identified by phone number.
+        This is typically used to upgrade regular users to vendors.
+        """
+        # Find user by phone number
+        result = await db.execute(
+            select(User).filter(User.phone == request.phone)
+        )
+        user = result.scalar_one_or_none()
+        
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"User with phone number {request.phone} not found"
+            )
+        
+        if not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot add vendor role to inactive user"
+            )
+        
+        # Convert current roles to list of string values
+        current_roles = []
+        if user.roles:
+            for role in user.roles:
+                if hasattr(role, 'value'):
+                    current_roles.append(role.value)
+                else:
+                    current_roles.append(str(role))
+        
+        # Check if user already has vendor role
+        if UserRole.VENDOR.value in current_roles:
+            get_user_context(user)
+        
+        # Add vendor role to the list
+        current_roles.append(UserRole.VENDOR.value)
+        
+        # Update user roles
+        user.roles = current_roles
+        
+        await db.commit()
+        await db.refresh(user)
+        
+        return get_user_context(user)

@@ -39,11 +39,22 @@ def decode_frontend_password(encoded_password: str) -> str:
 
 def get_user_context(user: User) -> UserContext:
     """Get user context"""
+    # Convert roles to list of UserRole enum values
+    roles_list = []
+    if user.roles:
+        for role in user.roles:
+            if hasattr(role, 'value'):
+                roles_list.append(role)
+            elif isinstance(role, str):
+                # Handle string values (from database)
+                roles_list.append(UserRole(role))
+            else:
+                roles_list.append(role)
+    
     return UserContext(
         id=user.id,
         email=user.email,
-        username=user.username,
-        role=user.role.value,
+        roles=roles_list if roles_list else [UserRole.USER],
         is_active=user.is_active,
         created_at=user.created_at,
         updated_at=user.updated_at
@@ -101,12 +112,21 @@ def generate_shared_context(user: User) -> str:
 
     now = datetime.now(timezone.utc)
 
+    # Convert roles to list of string values for JWT payload
+    roles_list = []
+    if user.roles:
+        for role in user.roles:
+            if hasattr(role, 'value'):
+                roles_list.append(role.value)
+            else:
+                roles_list.append(str(role))
+    
     payload = {
         "uid": user.id,
         "name": user.name,
         "email": user.email,
         "phone": user.phone,
-        "role": user.role.value if hasattr(user.role, 'value') else str(user.role),
+        "roles": roles_list if roles_list else ["user"],
         "iat": int(now.timestamp()),
         "exp": int(
             (now + timedelta(minutes=settings.SHARED_CONTEXT_EXPIRE_MINUTES)).timestamp()

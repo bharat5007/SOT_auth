@@ -25,7 +25,7 @@ class SignupRequest(BaseModel):
     phone: str
     email: Optional[EmailStr] = None
     password: str = Field(min_length=6)
-    role: UserRole = UserRole.USER
+    roles: List[UserRole] = Field(default_factory=lambda: [UserRole.USER])
 
 
 class RefreshTokenRequest(BaseModel):
@@ -35,7 +35,7 @@ class RefreshTokenRequest(BaseModel):
 # ============== Role Schemas ==============
 
 class RoleBase(BaseModel):
-    role: UserRole
+    roles: List[UserRole]
     is_active: bool = True
 
 
@@ -61,8 +61,7 @@ class TokenResponse(BaseModel):
 class UserContext(BaseModel):
     id: int
     email: str
-    username: str
-    role: UserRole
+    roles: List[UserRole]
     is_active: bool
     created_at: datetime
     updated_at: datetime
@@ -86,6 +85,10 @@ class UpdateProfileRequest(BaseModel):
 class UpdatePasswordRequest(BaseModel):
     current_password: str
     new_password: str = Field(min_length=6)
+
+
+class AddVendorRoleRequest(BaseModel):
+    phone: str = Field(min_length=10, max_length=20, description="Phone number of the user to upgrade to vendor")
 
 
 # ============== Error Schemas ==============

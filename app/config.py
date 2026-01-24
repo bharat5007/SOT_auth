@@ -2,6 +2,7 @@
 Application Configuration
 """
 from pydantic_settings import BaseSettings
+from pydantic import Field
 from functools import lru_cache
 
 
@@ -18,6 +19,13 @@ class Settings(BaseSettings):
     # SHARED CONTEXT (for microservices communication)
     SHARED_CONTEXT_SECRET: str = "your-shared-context-secret-change-in-production"
     SHARED_CONTEXT_EXPIRE_MINUTES: int = 15  # Short-lived tokens for service-to-service
+
+    # Service-to-service auth (Authorization: Bearer <jwt>)
+    # Env vars (because env_prefix="AUTH_"):
+    # - AUTH_SERVICE_TOKEN
+    # - AUTH_SERVICE_NAME
+    SERVICE_TOKEN: str = Field("change-me", description="Shared secret used to sign/verify service JWT")
+    SERVICE_NAME: str = Field("auth_service", description="Expected service identifier inside the service JWT")
     
     # App Settings
     APP_NAME: str = "Auth Microservice"
