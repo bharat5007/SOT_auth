@@ -62,7 +62,7 @@ class UserContext(BaseModel):
     id: int
     name: str
     phone: str
-    email: str
+    email: Optional[str] = None
     roles: List[UserRole]
     is_active: bool
     created_at: datetime
