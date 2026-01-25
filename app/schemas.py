@@ -60,6 +60,7 @@ class TokenResponse(BaseModel):
 
 class UserContext(BaseModel):
     id: int
+    phone: str
     email: str
     roles: List[UserRole]
     is_active: bool

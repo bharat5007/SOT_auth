@@ -53,6 +53,7 @@ def get_user_context(user: User) -> UserContext:
     
     return UserContext(
         id=user.id,
+        phone=user.phone,
         email=user.email,
         roles=roles_list if roles_list else [UserRole.USER],
         is_active=user.is_active,
