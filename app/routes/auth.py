@@ -48,11 +48,16 @@ async def logout(
     return response
 
 
-@router.post("/refresh", response_model=schemas.TokenResponse)
-async def refresh_token(request: RefreshTokenRequest, db: AsyncSession = Depends(get_db)):
+@router.post("/refresh")
+async def refresh_token(response: Response, request: RefreshTokenRequest, db: AsyncSession = Depends(get_db)):
     """Refresh access token using refresh token"""
-    response = await AuthManager.refresh_token(request, db)
-    return response
+    try:
+        user, tokens = await AuthManager.refresh_token(request, db)
+        shared_context = generate_shared_context(user)
+        return {"user": user, "tokens": tokens, "shared_context": shared_context}
+    except Exception as e:
+        response.status_code = status.HTTP_400_BAD_REQUEST
+        return {"message": f"Token refresh failed: {str(e)}"}
 
 
 @router.get("/me", response_model=schemas.UserContext)
@@ -60,28 +65,6 @@ async def get_user_context_route(current_user: models.User = Depends(auth.get_cu
     """Get current user context"""
     return get_user_context(current_user)
 
-
-
-@router.patch("/profile", response_model=schemas.UserContext)
-async def update_profile(
-    request: UpdateProfileRequest,
-    current_user: models.User = Depends(auth.get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """Update user profile"""
-    response = await AuthManager.update_profile(request, current_user, db)
-    return response
-
-
-@router.post("/change-password")
-async def change_password(
-    request: UpdatePasswordRequest,
-    current_user: models.User = Depends(auth.get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """Change user password"""
-    response = await AuthManager.change_password(request, current_user, db)
-    return response
 
 @router.post("/add-vendor-role")
 async def add_vendor_role(
