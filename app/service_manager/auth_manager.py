@@ -61,10 +61,16 @@ class AuthManager:
         # Decode frontend-encoded password
         decoded_password = decode_frontend_password(request.password)
         
-        if not user or not verify_password(decoded_password, user.hashed_password):
+        if not user:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid email or password"
+                detail="No user found"
+            )
+        
+        if not verify_password(decoded_password, user.hashed_password):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect password"
             )
         
         if not user.is_active:
