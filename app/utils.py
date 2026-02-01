@@ -1,6 +1,6 @@
 from app.models import User
 from app.schemas import UserContext
-from app.models import User, UserRole, RefreshToken
+from app.models import UserRole, RefreshToken
 from app.schemas import TokenResponse
 from app.auth import create_access_token, create_refresh_token, settings
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,25 +14,25 @@ import re
 def decode_frontend_password(encoded_password: str) -> str:
     """
     Decode password encoded by frontend.
-    
+
     Frontend encoding format: base64(password):timestamp_base36
     Example: "bWtrcDc2cHQ6MTIzNDU2" -> "mkkp76pt:123456"
-    
+
     This function extracts the actual password from the encoded payload.
     """
     try:
         # Decode from base64
         decoded_bytes = base64.b64decode(encoded_password)
-        decoded_str = decoded_bytes.decode('utf-8')
-        
+        decoded_str = decoded_bytes.decode("utf-8")
+
         # Split by delimiter ':'
-        if ':' in decoded_str:
-            _, password = decoded_str.split(':', 1)
+        if ":" in decoded_str:
+            _, password = decoded_str.split(":", 1)
             return password
         else:
             # If no delimiter, treat entire string as password
             return decoded_str
-    except Exception as e:
+    except Exception:
         # If decoding fails, return original (for backward compatibility)
         return encoded_password
 
@@ -43,14 +43,14 @@ def get_user_context(user: User) -> UserContext:
     roles_list = []
     if user.roles:
         for role in user.roles:
-            if hasattr(role, 'value'):
+            if hasattr(role, "value"):
                 roles_list.append(role)
             elif isinstance(role, str):
                 # Handle string values (from database)
                 roles_list.append(UserRole(role))
             else:
                 roles_list.append(role)
-    
+
     return UserContext(
         id=user.id,
         name=user.name,
@@ -59,32 +59,31 @@ def get_user_context(user: User) -> UserContext:
         roles=roles_list if roles_list else [UserRole.USER],
         is_active=user.is_active,
         created_at=user.created_at,
-        updated_at=user.updated_at
+        updated_at=user.updated_at,
     )
-    
+
+
 async def create_tokens(user: User, db: AsyncSession) -> TokenResponse:
     """Create access and refresh tokens for a user"""
     # Create access token
     access_token = create_access_token(data={"sub": str(user.id)})
-    
+
     # Create refresh token
     refresh_token, expires_at = create_refresh_token(data={"sub": str(user.id)})
-    
+
     # Store refresh token in database
     db_refresh_token = RefreshToken(
-        user_id=user.id,
-        token=refresh_token,
-        expires_at=expires_at
+        user_id=user.id, token=refresh_token, expires_at=expires_at
     )
     db.add(db_refresh_token)
     await db.commit()
-    
+
     return TokenResponse(
         access_token=access_token,
         refresh_token=refresh_token,
-        expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
+        expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     )
-    
+
 
 def base36_encode(number: int) -> str:
     ALPHABET = string.digits + string.ascii_lowercase
@@ -99,7 +98,7 @@ def base36_encode(number: int) -> str:
         number, rem = divmod(number, 36)
         base36.append(ALPHABET[rem])
 
-    return ''.join(reversed(base36))
+    return "".join(reversed(base36))
 
 
 def generate_shared_context(user: User) -> str:
@@ -118,11 +117,11 @@ def generate_shared_context(user: User) -> str:
     roles_list = []
     if user.roles:
         for role in user.roles:
-            if hasattr(role, 'value'):
+            if hasattr(role, "value"):
                 roles_list.append(role.value)
             else:
                 roles_list.append(str(role))
-    
+
     payload = {
         "uid": user.id,
         "name": user.name,
@@ -131,19 +130,18 @@ def generate_shared_context(user: User) -> str:
         "roles": roles_list if roles_list else ["user"],
         "iat": int(now.timestamp()),
         "exp": int(
-            (now + timedelta(minutes=settings.SHARED_CONTEXT_EXPIRE_MINUTES)).timestamp()
+            (
+                now + timedelta(minutes=settings.SHARED_CONTEXT_EXPIRE_MINUTES)
+            ).timestamp()
         ),
         "iss": "sot-auth",
-        "typ": "shared-context"
+        "typ": "shared-context",
     }
 
-    token = jwt.encode(
-        payload,
-        settings.SHARED_CONTEXT_SECRET,
-        algorithm="HS256"
-    )
+    token = jwt.encode(payload, settings.SHARED_CONTEXT_SECRET, algorithm="HS256")
 
     return token
+
 
 def is_email(s: str) -> bool:
     return bool(re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", s))

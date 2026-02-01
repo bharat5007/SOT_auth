@@ -1,6 +1,7 @@
 """
 Application Configuration
 """
+
 from pydantic_settings import BaseSettings
 from pydantic import Field
 from functools import lru_cache
@@ -8,36 +9,31 @@ from functools import lru_cache
 
 class Settings(BaseSettings):
     # Database
-    DATABASE_URL: str = "postgresql://user:password@localhost:5432/auth_db"
-    
+    DATABASE_URL: str = ""
+
     # JWT Settings
-    SECRET_KEY: str = "your-secret-key-change-in-production"
-    ALGORITHM: str = "HS256"
+    SECRET_KEY: str = ""
+    ALGORITHM: str = ""
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
-    
+
     # SHARED CONTEXT (for microservices communication)
-    SHARED_CONTEXT_SECRET: str = "your-shared-context-secret-change-in-production"
-    SHARED_CONTEXT_EXPIRE_MINUTES: int = 15  # Short-lived tokens for service-to-service
+    SHARED_CONTEXT_SECRET: str = ""
+    SHARED_CONTEXT_EXPIRE_MINUTES: int = 15
 
     # Service-to-service auth (Authorization: Bearer <jwt>)
-    # Env vars (because env_prefix="AUTH_"):
-    # - AUTH_SERVICE_TOKEN
-    # - AUTH_SERVICE_NAME
-    SERVICE_TOKEN: str = Field("change-me", description="Shared secret used to sign/verify service JWT")
-    SERVICE_NAME: str = Field("auth_service", description="Expected service identifier inside the service JWT")
-    
+    SERVICE_TOKEN: str = Field(
+        "", description="Shared secret used to sign/verify service JWT"
+    )
+    SERVICE_NAME: str = Field(
+        "auth_service", description="Expected service identifier inside the service JWT"
+    )
+
     # App Settings
     APP_NAME: str = "Auth Microservice"
     DEBUG: bool = False
-    ALLOWED_ORIGINS: list[str] = [
-        "http://localhost:3000",
-        "http://localhost:5173",
-        "http://localhost:8001",
-        "http://localhost:8080",
-        "https://your-frontend-domain.com"
-    ]
-    
+    ALLOWED_ORIGINS: list[str] = [""]
+
     class Config:
         env_file = ".env"
         case_sensitive = True

@@ -1,7 +1,8 @@
 """
 Pydantic Schemas for Request/Response Validation
 """
-from pydantic import BaseModel, EmailStr, Field, field_validator
+
+from pydantic import BaseModel, EmailStr, Field
 from typing import Optional, List
 from datetime import datetime
 from enum import Enum
@@ -14,6 +15,7 @@ class UserRole(str, Enum):
 
 
 # ============== Auth Schemas ==============
+
 
 class LoginRequest(BaseModel):
     identifier: str
@@ -34,6 +36,7 @@ class RefreshTokenRequest(BaseModel):
 
 # ============== Role Schemas ==============
 
+
 class RoleBase(BaseModel):
     roles: List[UserRole]
     is_active: bool = True
@@ -50,6 +53,7 @@ class RoleResponse(RoleBase):
 
 
 # ============== Response Schemas ==============
+
 
 class TokenResponse(BaseModel):
     access_token: str
@@ -79,6 +83,7 @@ class AuthResponse(BaseModel):
 
 # ============== Update Schemas ==============
 
+
 class UpdateProfileRequest(BaseModel):
     username: Optional[str] = Field(None, min_length=3, max_length=100)
     email: Optional[EmailStr] = None
@@ -90,10 +95,15 @@ class UpdatePasswordRequest(BaseModel):
 
 
 class AddVendorRoleRequest(BaseModel):
-    phone: str = Field(min_length=10, max_length=20, description="Phone number of the user to upgrade to vendor")
+    phone: str = Field(
+        min_length=10,
+        max_length=20,
+        description="Phone number of the user to upgrade to vendor",
+    )
 
 
 # ============== Error Schemas ==============
+
 
 class ErrorResponse(BaseModel):
     detail: str

@@ -3,6 +3,7 @@ Create all database tables (dev utility).
 
 WARNING: This drops all tables first. Use only in development.
 """
+
 import asyncio
 
 from app.database import engine, Base

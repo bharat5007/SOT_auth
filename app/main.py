@@ -1,6 +1,7 @@
 """
 FastAPI Auth Microservice - Main Application Entry
 """
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
@@ -21,9 +22,9 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"⚠️ Skipping database initialization: {str(e)}")
         print("   Configure DATABASE_URL in .env to enable database features")
-    
+
     yield
-    
+
     # Shutdown: Cleanup if needed
     try:
         await engine.dispose()
@@ -35,7 +36,7 @@ app = FastAPI(
     title=settings.APP_NAME,
     description="JWT Authentication Microservice with FastAPI",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # CORS Configuration
@@ -54,11 +55,7 @@ app.include_router(auth.router)
 @app.get("/")
 async def root():
     """Health check endpoint"""
-    return {
-        "service": settings.APP_NAME,
-        "status": "healthy",
-        "version": "1.0.0"
-    }
+    return {"service": settings.APP_NAME, "status": "healthy", "version": "1.0.0"}
 
 
 @app.get("/health")

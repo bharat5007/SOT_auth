@@ -1,6 +1,7 @@
 """
 JWT Authentication and Password Hashing Utilities
 """
+
 from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
@@ -34,12 +35,10 @@ def hash_password(password: str) -> str:
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     """Create a JWT access token"""
     to_encode = data.copy()
-    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES))
-    to_encode.update({
-        "exp": expire,
-        "iat": datetime.utcnow(),
-        "type": "access"
-    })
+    expire = datetime.utcnow() + (
+        expires_delta or timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    )
+    to_encode.update({"exp": expire, "iat": datetime.utcnow(), "type": "access"})
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 
@@ -47,12 +46,14 @@ def create_refresh_token(data: dict) -> tuple[str, datetime]:
     """Create a JWT refresh token"""
     to_encode = data.copy()
     expire = datetime.utcnow() + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
-    to_encode.update({
-        "exp": expire,
-        "iat": datetime.utcnow(),
-        "type": "refresh",
-        "jti": secrets.token_urlsafe(32)  # Unique token ID
-    })
+    to_encode.update(
+        {
+            "exp": expire,
+            "iat": datetime.utcnow(),
+            "type": "refresh",
+            "jti": secrets.token_urlsafe(32),  # Unique token ID
+        }
+    )
     token = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
     return token, expire
 
@@ -60,7 +61,9 @@ def create_refresh_token(data: dict) -> tuple[str, datetime]:
 def decode_token(token: str) -> dict:
     """Decode and validate a JWT token"""
     try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        payload = jwt.decode(
+            token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+        )
         return payload
     except JWTError:
         raise HTTPException(
@@ -72,68 +75,71 @@ def decode_token(token: str) -> dict:
 
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ) -> models.User:
     """Get current authenticated user from JWT token"""
     token = credentials.credentials
     payload = decode_token(token)
-    
+
     if payload.get("type") != "access":
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token type"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token type"
         )
-    
+
     user_id = payload.get("sub")
     if not user_id:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token payload"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload"
         )
-    
+
     result = await db.execute(
         select(models.User).filter(models.User.id == int(user_id))
     )
     user = result.scalar_one_or_none()
-    
+
     if not user:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found"
         )
-    
+
     if not user.is_active:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="User account is disabled"
+            status_code=status.HTTP_403_FORBIDDEN, detail="User account is disabled"
         )
-    
+
     return user
 
 
-async def get_current_active_user(current_user: models.User = Depends(get_current_user)) -> models.User:
+async def get_current_active_user(
+    current_user: models.User = Depends(get_current_user),
+) -> models.User:
     """Ensure current user is active"""
     if not current_user.is_active:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Inactive user"
+            status_code=status.HTTP_403_FORBIDDEN, detail="Inactive user"
         )
     return current_user
 
 
 def require_role(allowed_roles: list[str]):
     """Dependency to require specific roles"""
-    async def role_checker(current_user: models.User = Depends(get_current_user)) -> models.User:
+
+    async def role_checker(
+        current_user: models.User = Depends(get_current_user),
+    ) -> models.User:
         # Convert user roles to values for comparison
-        user_role_values = [role.value if hasattr(role, 'value') else str(role) for role in current_user.roles]
-        
+        user_role_values = [
+            role.value if hasattr(role, "value") else str(role)
+            for role in current_user.roles
+        ]
+
         # Check if user has any of the allowed roles
         if not any(role in allowed_roles for role in user_role_values):
             raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Insufficient permissions"
+                status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions"
             )
         return current_user
+
     return role_checker
 
 
