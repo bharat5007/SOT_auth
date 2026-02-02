@@ -37,7 +37,7 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         case_sensitive = True
-        env_prefix = "AUTH_"
+        # env_prefix = "AUTH_"
 
 
 @lru_cache()
