@@ -31,8 +31,8 @@ class User(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String)
-    phone = Column(String(20))
-    email = Column(String(255), unique=True, nullable=True)
+    phone = Column(String(20), index=True)
+    email = Column(String(255), nullable=True)
     hashed_password = Column(String, nullable=False)
     roles = Column(
         PG_ARRAY(Enum(UserRole, name="userrole", create_type=False)),
