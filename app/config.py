@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
+    PASSWORD_ENCODE_KEY: str = ""
+
     # SHARED CONTEXT (for microservices communication)
     SHARED_CONTEXT_SECRET: str = ""
     SHARED_CONTEXT_EXPIRE_MINUTES: int = 15

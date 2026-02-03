@@ -27,14 +27,17 @@ def decode_frontend_password(encoded_password: str) -> str:
 
         # Split by delimiter ':'
         if ":" in decoded_str:
-            _, password = decoded_str.split(":", 1)
+            prefix, password = decoded_str.split(":", 1)
+
+            if prefix != settings.PASSWORD_ENCODE_KEY:
+                raise Exception("Invalid encoding key")
+
             return password
         else:
             # If no delimiter, treat entire string as password
             return decoded_str
-    except Exception:
-        # If decoding fails, return original (for backward compatibility)
-        return encoded_password
+    except Exception as e:
+        raise Exception(e)
 
 
 def get_user_context(user: User) -> UserContext:

@@ -23,37 +23,40 @@ from datetime import datetime, timezone
 class AuthManager:
     @classmethod
     async def signup(cls, request: SignupRequest, db: AsyncSession) -> AuthResponse:
-        """Register a new user account"""
-        result = await db.execute(select(User).filter(User.phone == request.phone))
-        existing_user = result.scalar_one_or_none()
-        if existing_user:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Email already registered",
+        try:
+            """Register a new user account"""
+            result = await db.execute(select(User).filter(User.phone == request.phone))
+            existing_user = result.scalar_one_or_none()
+            if existing_user:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Email already registered",
+                )
+
+            # Decode frontend-encoded password
+            decoded_password = decode_frontend_password(request.password)
+
+            # During signup, default to user role only, ignore any roles in request
+            roles_to_assign = [UserRole.USER.value]
+
+            # Create new user
+            user = User(
+                name=request.name,
+                phone=request.phone,
+                email=request.email,
+                hashed_password=hash_password(decoded_password),
+                roles=roles_to_assign,
             )
 
-        # Decode frontend-encoded password
-        decoded_password = decode_frontend_password(request.password)
+            db.add(user)
+            await db.flush()
+            await db.commit()
+            await db.refresh(user)
 
-        # During signup, default to user role only, ignore any roles in request
-        roles_to_assign = [UserRole.USER.value]
-
-        # Create new user
-        user = User(
-            name=request.name,
-            phone=request.phone,
-            email=request.email,
-            hashed_password=hash_password(decoded_password),
-            roles=roles_to_assign,
-        )
-
-        db.add(user)
-        await db.flush()
-        await db.commit()
-        await db.refresh(user)
-
-        token = await create_tokens(user, db)
-        return user, token
+            token = await create_tokens(user, db)
+            return user, token
+        except Exception as e:
+            raise Exception(str(e))
 
     @classmethod
     async def login(cls, request: LoginRequest, db: AsyncSession) -> AuthResponse:
