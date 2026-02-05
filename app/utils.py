@@ -9,6 +9,12 @@ from datetime import datetime, timedelta, timezone
 import jwt
 import base64
 import re
+import logging
+
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
 
 
 def decode_frontend_password(encoded_password: str) -> str:
@@ -28,6 +34,7 @@ def decode_frontend_password(encoded_password: str) -> str:
         # Split by delimiter ':'
         if ":" in decoded_str:
             prefix, password = decoded_str.split(":", 1)
+            logger.info(f"PREFIX: {prefix}      {password}")
 
             if prefix != settings.PASSWORD_ENCODE_KEY:
                 raise Exception("Invalid encoding key")
