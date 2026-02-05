@@ -5,7 +5,6 @@ Application Configuration
 from pydantic_settings import BaseSettings
 from pydantic import Field
 from functools import lru_cache
-from pydantic_settings import SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -37,7 +36,9 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     ALLOWED_ORIGINS: list[str] = [""]
 
-    model_config = SettingsConfigDict(env_file=".env", case_sensitive=True)
+    class Config:
+        env_file = ".env"
+        case_sensitive = True
 
 
 @lru_cache()
