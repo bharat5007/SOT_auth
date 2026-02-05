@@ -9,6 +9,12 @@ from contextlib import asynccontextmanager
 from .config import settings
 from .database import engine, Base
 from .routes import auth
+import logging
+
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -18,10 +24,10 @@ async def lifespan(app: FastAPI):
     try:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
-        print("✅ Database tables created successfully")
+        logger.info("✅ Database tables created successfully")
     except Exception as e:
-        print(f"⚠️ Skipping database initialization: {str(e)}")
-        print("   Configure DATABASE_URL in .env to enable database features")
+        logger.error(f"⚠️ Database initialization failed: {str(e)}")
+        raise Exception(str(e))
 
     yield
 
