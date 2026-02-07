@@ -114,7 +114,7 @@ class AuthManager:
         result = await db.execute(
             select(RefreshToken).filter(
                 RefreshToken.token == request.refresh_token,
-                not RefreshToken.is_revoked,
+                RefreshToken.is_revoked.is_(False),
             )
         )
         db_token = result.scalar_one_or_none()
